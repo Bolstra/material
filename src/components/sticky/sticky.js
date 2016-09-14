@@ -265,7 +265,12 @@ function MdSticky($mdConstant, $$rAF, $mdUtil, $compile) {
     }
 
     function setCurrentItem(item) {
-      if (self.current === item) return;
+			// ***
+			// Remove in order to properly process items during
+			// paging operation.
+      //if (self.current === item) return;
+			// ***
+
       // Deactivate currently active item
       if (self.current) {
         translate(self.current, null);
