@@ -114,6 +114,16 @@ describe('$mdPanel', function() {
     expect(PANEL_EL).not.toExist();
   });
 
+  it('should remove a panel from the DOM when the scope is destroyed', function() {
+    openPanel();
+
+    expect(PANEL_EL).toExist();
+
+    panelRef.config.scope.$destroy();
+
+    expect(PANEL_EL).not.toExist();
+  });
+
   it('should hide and show a panel in the DOM', function() {
     openPanel(DEFAULT_CONFIG);
 
@@ -134,21 +144,21 @@ describe('$mdPanel', function() {
   it('destroy should clear the config locals on the panelRef', function () {
     openPanel(DEFAULT_CONFIG);
 
-    expect(panelRef._config.locals).not.toEqual(null);
+    expect(panelRef.config.locals).not.toEqual(null);
 
     panelRef.destroy();
 
-    expect(panelRef._config.locals).toEqual(null);
+    expect(panelRef.config.locals).toEqual(null);
   });
 
   it('destroy should destroy the panel scope', function () {
     openPanel(DEFAULT_CONFIG);
 
-    expect(panelRef._config.scope.$$destroyed).toBe(false);
+    expect(panelRef.config.scope.$$destroyed).toBe(false);
 
     panelRef.destroy();
 
-    expect(panelRef._config.scope.$$destroyed).toBe(true);
+    expect(panelRef.config.scope.$$destroyed).toBe(true);
   });
 
   describe('promises logic:', function() {
@@ -176,7 +186,7 @@ describe('$mdPanel', function() {
 
       expect(openResolved).toBe(true);
       expect(PANEL_WRAPPER_CLASS).toExist();
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
       expect(panelRef.isAttached).toEqual(true);
 
       panelRef.close().then(function() { closeResolved = true; });
@@ -218,7 +228,7 @@ describe('$mdPanel', function() {
     it('should resolve on animate failure when opening', function() {
       var openResolved = false;
 
-      panelRef._config.animation.animateOpen = function() {
+      panelRef.config.animation.animateOpen = function() {
         return panelRef._$q.reject();
       };
 
@@ -227,7 +237,7 @@ describe('$mdPanel', function() {
 
       expect(openResolved).toBe(true);
       expect(panelRef.isAttached).toEqual(true);
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
     });
 
     it('should reject on show when opening', function() {
@@ -242,7 +252,7 @@ describe('$mdPanel', function() {
 
       expect(openRejected).toBe(true);
       expect(panelRef.isAttached).toEqual(true);
-      expect(panelRef._panelContainer).toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).toHaveClass(HIDDEN_CLASS);
     });
 
     it('should reject on hide when closing', function() {
@@ -250,7 +260,7 @@ describe('$mdPanel', function() {
 
       openPanel();
 
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
       expect(panelRef.isAttached).toEqual(true);
 
       panelRef.hide = function() {
@@ -269,10 +279,10 @@ describe('$mdPanel', function() {
 
       openPanel();
 
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
       expect(panelRef.isAttached).toEqual(true);
 
-      panelRef._config.animation.animateClose = function() {
+      panelRef.config.animation.animateClose = function() {
         return panelRef._$q.reject();
       };
 
@@ -281,7 +291,7 @@ describe('$mdPanel', function() {
 
       expect(closeResolved).toBe(true);
       expect(panelRef.isAttached).toEqual(false);
-      expect(panelRef._panelContainer).toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).toHaveClass(HIDDEN_CLASS);
     });
 
     it('should reject on detach when closing', function() {
@@ -289,7 +299,7 @@ describe('$mdPanel', function() {
 
       openPanel();
 
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
       expect(panelRef.isAttached).toEqual(true);
 
       panelRef.detach = function() {
@@ -327,6 +337,31 @@ describe('$mdPanel', function() {
   });
 
   describe('config options:', function() {
+
+    it('should not recreate a panel that is tracked by a user-defined id',
+        function() {
+          var config = {
+            id: 'custom-id'
+          };
+
+          var panel1 = $mdPanel.create(config);
+          panel1.open();
+          flushPanel();
+
+          var panels = document.querySelectorAll(PANEL_EL);
+          expect(panels.length).toEqual(1);
+
+          var panel2 = $mdPanel.create(config);
+          panel2.open();
+          flushPanel();
+
+          panels = document.querySelectorAll(PANEL_EL);
+          expect(panels.length).toEqual(1);
+
+          expect(panel1).toEqual(panel2);
+
+          panel1.close();
+        });
 
     it('should allow multiple panels', function() {
       var customClass = 'custom-class';
@@ -539,7 +574,7 @@ describe('$mdPanel', function() {
       var topTrap = focusTraps[0];
       var bottomTrap = focusTraps[1];
 
-      var panel = panelRef._panelEl;
+      var panel = panelRef.panelEl;
       var isPanelFocused = false;
       panel[0].addEventListener('focus', function() {
         isPanelFocused = true;
@@ -650,14 +685,10 @@ describe('$mdPanel', function() {
       spyOn($mdUtil, 'disableScrollAround').and.callThrough();
 
       openPanel(config);
-
       expect(PANEL_EL).toExist();
-      expect(SCROLL_MASK_CLASS).toExist();
-
+      expect(SCROLL_MASK_CLASS).not.toExist();
       closePanel();
 
-      var scrollMaskEl = $rootEl[0].querySelector(SCROLL_MASK_CLASS);
-      expect(scrollMaskEl).not.toExist();
       expect($mdUtil.disableScrollAround).toHaveBeenCalled();
     });
 
@@ -703,7 +734,7 @@ describe('$mdPanel', function() {
         expect(PANEL_EL).toExist();
         expect(attachResolved).toBe(true);
         expect(panelRef.isAttached).toEqual(true);
-        expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+        expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
       });
 
       it('should reject open when onDomAdded rejects', function() {
@@ -725,7 +756,7 @@ describe('$mdPanel', function() {
         expect(onDomAddedCalled).toBe(true);
         expect(openRejected).toBe(true);
         expect(panelRef.isAttached).toEqual(true);
-        expect(panelRef._panelContainer).toHaveClass(HIDDEN_CLASS);
+        expect(panelRef.panelContainer).toHaveClass(HIDDEN_CLASS);
       });
 
       it('should call onOpenComplete if provided after adding the panel to the ' +
@@ -896,84 +927,79 @@ describe('$mdPanel', function() {
     });
 
     describe('CSS class logic:', function() {
-      it('should add a class to the container/wrapper when toElement=false',
-          function() {
-            openPanel(DEFAULT_CONFIG);
-
-            panelRef.addClass('my-class');
-
-            expect(PANEL_WRAPPER_CLASS).toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('my-class');
-          });
-
-      it('should add a class to the element when toElement=true', function() {
+      it('should add a class to the container/wrapper', function() {
         openPanel(DEFAULT_CONFIG);
 
-        panelRef.addClass('my-class', true);
+        panelRef.panelContainer.addClass('my-class');
+
+        expect(PANEL_WRAPPER_CLASS).toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('my-class');
+      });
+
+      it('should add a class to the element', function() {
+        openPanel(DEFAULT_CONFIG);
+
+        panelRef.panelEl.addClass('my-class');
 
         expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
         expect(PANEL_EL).toHaveClass('my-class');
       });
 
-      it('should remove a class from the container/wrapper when fromElement=false',
-          function() {
-            openPanel(DEFAULT_CONFIG);
+      it('should remove a class from the container/wrapper', function() {
+        openPanel(DEFAULT_CONFIG);
 
-            panelRef.addClass('my-class');
+        panelRef.panelContainer.addClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('my-class');
+        expect(PANEL_WRAPPER_CLASS).toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('my-class');
 
-            panelRef.removeClass('my-class');
+        panelRef.panelContainer.removeClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('my-class');
-          });
+        expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('my-class');
+      });
 
-      it('should remove a class from the element when fromElement=true',
-          function() {
-            openPanel(DEFAULT_CONFIG);
+      it('should remove a class from the element', function() {
+        openPanel(DEFAULT_CONFIG);
 
-            panelRef.addClass('my-class', true);
+        panelRef.panelEl.addClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
-            expect(PANEL_EL).toHaveClass('my-class');
+        expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
+        expect(PANEL_EL).toHaveClass('my-class');
 
-            panelRef.removeClass('my-class', true);
+        panelRef.panelEl.removeClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('my-class');
-          });
+        expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('my-class');
+      });
 
-      it('should toggle a class on the container/wrapper when onElement=false',
-          function() {
-            openPanel(DEFAULT_CONFIG);
+      it('should toggle a class on the container/wrapper', function() {
+        openPanel(DEFAULT_CONFIG);
 
-            panelRef.toggleClass('my-class');
+        panelRef.panelContainer.toggleClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('my-class');
+        expect(PANEL_WRAPPER_CLASS).toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('my-class');
 
-            panelRef.toggleClass('my-class');
+        panelRef.panelContainer.toggleClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('my-class');
-          });
+        expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('my-class');
+      });
 
-      it('should toggle a class on the element when onElement=true',
-          function() {
-            openPanel(DEFAULT_CONFIG);
+      it('should toggle a class on the element', function() {
+        openPanel(DEFAULT_CONFIG);
 
-            panelRef.toggleClass('my-class', true);
+        panelRef.panelEl.toggleClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
-            expect(PANEL_EL).toHaveClass('my-class');
+        expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
+        expect(PANEL_EL).toHaveClass('my-class');
 
-            panelRef.toggleClass('my-class', true);
+        panelRef.panelEl.toggleClass('my-class');
 
-            expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
-            expect(PANEL_EL).not.toHaveClass('n-class');
-          });
+        expect(PANEL_WRAPPER_CLASS).not.toHaveClass('my-class');
+        expect(PANEL_EL).not.toHaveClass('n-class');
+      });
     });
 
     describe('should focus on the origin element on', function() {
@@ -1031,6 +1057,169 @@ describe('$mdPanel', function() {
         expect(myButton).toBeFocused();
       });
     });
+  });
+
+  describe('grouping logic:', function() {
+    it('should create a group using the newPanelGroup method', function() {
+      $mdPanel.newPanelGroup('test');
+
+      expect($mdPanel._groups['test']).toExist();
+    });
+
+    it('should create a group using the config option groupName when the ' +
+        'group hasn\'t been created yet', function() {
+          var config = {
+            groupName: 'test'
+          };
+          var panel = $mdPanel.create(config);
+
+          expect($mdPanel._groups['test']).toExist();
+        });
+
+    it('should only create a group once', function() {
+      var config = {
+        groupName: 'test'
+      };
+      var panel = $mdPanel.create(config);
+
+      expect(getNumberOfGroups()).toEqual(1);
+
+      $mdPanel.newPanelGroup('test');
+
+      expect(getNumberOfGroups()).toEqual(1);
+    });
+
+    it('should not create a group using the config option when the group is ' +
+        'already defined', function() {
+          $mdPanel.newPanelGroup('test');
+
+          expect(getNumberOfGroups()).toEqual(1);
+
+          var config = {
+            groupName: 'test'
+          };
+          var panel = $mdPanel.create(config);
+
+          expect(getNumberOfGroups()).toEqual(1);
+        });
+
+    it('should add a panel to a group using the addToGroup method', function() {
+      $mdPanel.newPanelGroup('test');
+      var panel = $mdPanel.create(DEFAULT_CONFIG);
+
+      panel.addToGroup('test');
+      expect(getGroupPanels('test')).toContain(panel);
+    });
+
+    it('should add a panel to a group using the config option groupName',
+        function() {
+          $mdPanel.newPanelGroup('test');
+
+          var config = {
+            groupName: 'test'
+          };
+
+          var panel = $mdPanel.create(config);
+          expect(getGroupPanels('test')).toContain(panel);
+        });
+
+    it('should remove a panel from a group using the removeFromGroup method',
+        function() {
+          $mdPanel.newPanelGroup('test');
+
+          var config = {
+            groupName: 'test'
+          };
+
+          var panel = $mdPanel.create(config);
+
+          panel.removeFromGroup('test');
+          expect(getGroupPanels('test')).not.toContain(panel);
+        });
+
+    it('should remove a panel from a group on panel destroy', function() {
+      $mdPanel.newPanelGroup('test');
+
+      var config = {
+        groupName: 'test'
+      };
+
+      var panel = $mdPanel.create(config);
+
+      panel.destroy();
+      expect(getGroupPanels('test')).not.toContain(panel);
+    });
+
+    it('should set the maximum number of panels allowed open within a group ' +
+        'using the newPanelGroup option', function() {
+          $mdPanel.newPanelGroup('test', {
+            maxOpen: 1
+          });
+
+          expect(getGroupMaxOpen('test')).toEqual(1);
+        });
+
+    it('should set the maximum number of panels allowed open within a group ' +
+        'using the setGroupMaxOpen method', function() {
+          $mdPanel.newPanelGroup('test');
+          $mdPanel.setGroupMaxOpen('test', 1);
+
+          expect(getGroupMaxOpen('test')).toEqual(1);
+        });
+
+    it('should throw if trying to set maxOpen on a group that doesn\'t exist',
+        function() {
+          var expression = function() {
+            $mdPanel.setGroupMaxOpen('test', 1);
+          };
+
+          expect(expression).toThrow();
+        });
+
+    it('should update open panels when a panel is closed', function() {
+      $mdPanel.newPanelGroup('test');
+
+      var config = {
+        groupName: 'test'
+      };
+
+      openPanel(config);
+      flushPanel();
+      expect(getGroupOpenPanels('test')).toContain(panelRef);
+
+      closePanel();
+      flushPanel();
+      expect(getGroupOpenPanels('test')).not.toContain(panelRef);
+    });
+
+    it('should close the first open panel when more than the maximum number ' +
+        'of panels is opened', function() {
+          $mdPanel.newPanelGroup('test', {
+            maxOpen: 2
+          });
+
+          var config = {
+            groupName: 'test'
+          };
+
+          var panel1 = $mdPanel.create(config);
+          var panel2 = $mdPanel.create(config);
+          var panel3 = $mdPanel.create(config);
+
+          panel1.open();
+          flushPanel();
+          expect(panel1.isAttached).toEqual(true);
+
+          panel2.open();
+          panel3.open();
+          flushPanel();
+          expect(panel1.isAttached).toEqual(false);
+          expect(panel2.isAttached).toEqual(true);
+          expect(panel3.isAttached).toEqual(true);
+
+          panel2.close();
+          panel3.close();
+        });
   });
 
   describe('component logic: ', function() {
@@ -1312,7 +1501,7 @@ describe('$mdPanel', function() {
             .absolute()
             .top(top)
             .left(left);
-            
+
         config['position'] = position;
 
         openPanel(config);
@@ -1356,6 +1545,34 @@ describe('$mdPanel', function() {
             .toBeApproximately(parseInt(left) + parseInt(offset));
       });
 
+      it('horizontally with a function', function() {
+        var left = '50px';
+        var offset = '-15px';
+        var obj = {
+          getOffsetX: function() {
+            return offset;
+          }
+        };
+
+        spyOn(obj, 'getOffsetX').and.callThrough();
+
+        var position = mdPanelPosition
+            .absolute()
+            .left(left)
+            .withOffsetX(obj.getOffsetX);
+
+        config['position'] = position;
+
+        openPanel(config);
+
+        var panelRect = document.querySelector(PANEL_EL)
+            .getBoundingClientRect();
+
+        expect(obj.getOffsetX).toHaveBeenCalledWith(position);
+        expect(panelRect.left)
+            .toBeApproximately(parseInt(left) + parseInt(offset));
+      });
+
       it('horizontally with centering', function() {
         var offset = '15px';
 
@@ -1394,6 +1611,34 @@ describe('$mdPanel', function() {
         var panelRect = document.querySelector(PANEL_EL)
             .getBoundingClientRect();
 
+        expect(panelRect.top)
+            .toBeApproximately(parseInt(top) + parseInt(offset));
+      });
+
+      it('vertically with a function', function() {
+        var top = '50px';
+        var offset = '-15px';
+        var obj = {
+          getOffsetY: function() {
+            return offset;
+          }
+        };
+
+        spyOn(obj, 'getOffsetY').and.callThrough();
+
+        var position = mdPanelPosition
+            .absolute()
+            .top(top)
+            .withOffsetY(obj.getOffsetY);
+
+        config['position'] = position;
+
+        openPanel(config);
+
+        var panelRect = document.querySelector(PANEL_EL)
+            .getBoundingClientRect();
+
+        expect(obj.getOffsetY).toHaveBeenCalledWith(position);
         expect(panelRect.top)
             .toBeApproximately(parseInt(top) + parseInt(offset));
       });
@@ -1780,6 +2025,40 @@ describe('$mdPanel', function() {
         });
       });
 
+      it('takes the x offset into account', function() {
+        var position = mdPanelPosition
+            .relativeTo(myButton)
+            .withOffsetX(window.innerWidth + 'px')
+            .addPanelPosition(xPosition.ALIGN_START, yPosition.ALIGN_TOPS)
+            .addPanelPosition(xPosition.ALIGN_END, yPosition.ALIGN_TOPS);
+
+        config['position'] = position;
+
+        openPanel(config);
+
+        expect(position.getActualPosition()).toEqual({
+          x: xPosition.ALIGN_END,
+          y: yPosition.ALIGN_TOPS
+        });
+      });
+
+      it('takes the y offset into account', function() {
+        var position = mdPanelPosition
+            .relativeTo(myButton)
+            .withOffsetY(window.innerHeight + 'px')
+            .addPanelPosition(xPosition.ALIGN_START, yPosition.ALIGN_BOTTOMS)
+            .addPanelPosition(xPosition.ALIGN_START, yPosition.ALIGN_TOPS);
+
+        config['position'] = position;
+
+        openPanel(config);
+
+        expect(position.getActualPosition()).toEqual({
+          x: xPosition.ALIGN_START,
+          y: yPosition.ALIGN_TOPS
+        });
+      });
+
       it('should choose last position if none are on-screen', function() {
         var position = mdPanelPosition
             .relativeTo(myButton)
@@ -2051,11 +2330,11 @@ describe('$mdPanel', function() {
 
       openPanel();
       // If animation dies, panel doesn't unhide.
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
 
       closePanel();
       // If animation dies, panel doesn't hide.
-      expect(panelRef._panelContainer).toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).toHaveClass(HIDDEN_CLASS);
     });
 
     it('should animate with custom class', function() {
@@ -2065,11 +2344,11 @@ describe('$mdPanel', function() {
 
       openPanel();
       // If animation dies, panel doesn't unhide.
-      expect(panelRef._panelContainer).not.toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).not.toHaveClass(HIDDEN_CLASS);
 
       closePanel();
       // If animation dies, panel doesn't hide.
-      expect(panelRef._panelContainer).toHaveClass(HIDDEN_CLASS);
+      expect(panelRef.panelContainer).toHaveClass(HIDDEN_CLASS);
     });
 
     describe('should determine openFrom when', function() {
@@ -2129,6 +2408,249 @@ describe('$mdPanel', function() {
         expect(animation._closeTo.bounds).toEqual(inputRect);
       });
     });
+
+    describe('should determine the animation duration when', function() {
+      it('provided a value in milliseconds', function() {
+        var animation = mdPanelAnimation.duration(1300);
+
+        expect(animation._openDuration).toBe(1.3);
+      });
+
+      it('provided a number', function() {
+        var animation = mdPanelAnimation.duration(2000);
+
+        expect(animation._openDuration).toEqual(animation._closeDuration);
+        expect(animation._openDuration).toBe(2);
+      });
+
+      it('provided an object', function() {
+        var animation = mdPanelAnimation.duration({
+          open: 1200,
+          close: 600
+        });
+
+        expect(animation._openDuration).toBe(1.2);
+        expect(animation._closeDuration).toBe(0.6);
+      });
+
+      it('provided an invalid value', function() {
+        var animation = mdPanelAnimation.duration('very fast');
+
+        expect(animation._openDuration).toBeFalsy();
+        expect(animation._closeDuration).toBeFalsy();
+      });
+    });
+  });
+
+  describe('interceptor logic: ', function() {
+    var interceptorTypes;
+
+    beforeEach(function() {
+      interceptorTypes = $mdPanel.interceptorTypes;
+      openPanel();
+    });
+
+    it('should throw when registering an interceptor without a type', function() {
+      expect(function() {
+        panelRef.registerInterceptor();
+      }).toThrowError('MdPanel: Interceptor type must be a string, instead got undefined');
+    });
+
+    it('should throw when registering an interceptor without a callback', function() {
+      expect(function() {
+        panelRef.registerInterceptor(interceptorTypes.CLOSE);
+      }).toThrowError('MdPanel: Interceptor callback must be a function, instead got undefined');
+    });
+
+    it('should execute the registered interceptors', function() {
+      var obj = { callback: function() {} };
+
+      spyOn(obj, 'callback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, obj.callback);
+      callInterceptors('CLOSE');
+
+      expect(obj.callback).toHaveBeenCalledWith(panelRef);
+    });
+
+    it('should execute the interceptors in reverse order', function() {
+      var results = [];
+      var obj = { callback: function() {} };
+
+      spyOn(obj, 'callback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, makePromise(1));
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, makePromise(2));
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, makePromise(3));
+      callInterceptors('CLOSE').then(obj.callback);
+      $rootScope.$apply();
+
+      expect(results).toEqual([3, 2, 1]);
+      expect(obj.callback).toHaveBeenCalled();
+
+      function makePromise(value) {
+        return function() {
+          return $q.resolve().then(function() {
+            results.push(value);
+          });
+        };
+      }
+    });
+
+    it('should reject and break the chain if one of the promises is rejected', function() {
+      var results = [];
+      var obj = { callback: function() {} };
+
+      spyOn(obj, 'callback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, makePromise(1, true));
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, makePromise(2));
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, makePromise(3));
+
+      callInterceptors('CLOSE').catch(obj.callback);
+      $rootScope.$apply();
+
+      expect(results).toEqual([3, 2]);
+      expect(obj.callback).toHaveBeenCalled();
+
+      function makePromise(value, shouldFail) {
+        return function() {
+          return shouldFail ? $q.reject() : $q.resolve().then(function() {
+            results.push(value);
+          });
+        };
+      }
+    });
+
+    it('should reject if one of the interceptors throws', function() {
+      var obj = { callback: function() {} };
+
+      spyOn(obj, 'callback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, function() {
+        throw new Error('Something went wrong.');
+      });
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, function() {
+        return $q.resolve();
+      });
+
+      callInterceptors('CLOSE').catch(obj.callback);
+      $rootScope.$apply();
+
+      expect(obj.callback).toHaveBeenCalled();
+    });
+
+    it('should resolve if the interceptor queue is empty', function() {
+      var obj = { callback: function() {} };
+
+      spyOn(obj, 'callback');
+
+      callInterceptors('CLOSE').then(obj.callback);
+      $rootScope.$apply();
+
+      expect(obj.callback).toHaveBeenCalled();
+    });
+
+    it('should remove individual interceptors', function() {
+      var obj = { callback: function() {} };
+
+      spyOn(obj, 'callback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, obj.callback);
+
+      callInterceptors('CLOSE');
+
+      expect(obj.callback).toHaveBeenCalledTimes(1);
+
+      panelRef.removeInterceptor(interceptorTypes.CLOSE, obj.callback);
+      panelRef._callInterceptors(interceptorTypes.CLOSE);
+      flushPanel();
+
+      expect(obj.callback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should remove all interceptors', function() {
+      var obj = {
+        callback: function() {},
+        otherCallback: function() {}
+      };
+
+      spyOn(obj, 'callback');
+      spyOn(obj, 'otherCallback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, obj.callback);
+      panelRef.registerInterceptor('onOpen', obj.otherCallback);
+
+      callInterceptors('CLOSE');
+      callInterceptors('onOpen');
+
+      expect(obj.callback).toHaveBeenCalledTimes(1);
+      expect(obj.otherCallback).toHaveBeenCalledTimes(1);
+
+      panelRef.removeAllInterceptors();
+
+      callInterceptors('CLOSE');
+      callInterceptors('onOpen');
+
+      expect(obj.callback).toHaveBeenCalledTimes(1);
+      expect(obj.otherCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should remove all interceptors of a certain type', function() {
+      var obj = {
+        callback: function() {},
+        otherCallback: function() {}
+      };
+
+      spyOn(obj, 'callback');
+      spyOn(obj, 'otherCallback');
+
+      panelRef.registerInterceptor(interceptorTypes.CLOSE, obj.callback);
+      panelRef.registerInterceptor('onOpen', obj.otherCallback);
+
+      callInterceptors('CLOSE');
+      callInterceptors('onOpen');
+
+      expect(obj.callback).toHaveBeenCalledTimes(1);
+      expect(obj.otherCallback).toHaveBeenCalledTimes(1);
+
+      panelRef.removeAllInterceptors(interceptorTypes.CLOSE);
+
+      callInterceptors('CLOSE');
+      callInterceptors('onOpen');
+
+      expect(obj.callback).toHaveBeenCalledTimes(1);
+      expect(obj.otherCallback).toHaveBeenCalledTimes(2);
+    });
+
+    describe('CLOSE interceptor', function() {
+      it('should prevent the panel from closing when the handler is rejected',
+        function() {
+          panelRef.registerInterceptor(interceptorTypes.CLOSE, function() {
+            return $q.reject();
+          });
+
+          expect(panelRef.isAttached).toBe(true);
+
+          panelRef.close().catch(angular.noop);
+          flushPanel();
+
+          expect(panelRef.isAttached).toBe(true);
+        });
+
+      it('should allow the panel to close when the handler resolves', function() {
+        panelRef.registerInterceptor(interceptorTypes.CLOSE, function() {
+          return $q.when();
+        });
+
+        expect(panelRef.isAttached).toBe(true);
+
+        closePanel();
+
+        expect(panelRef.isAttached).toBe(false);
+      });
+    });
   });
 
   /**
@@ -2147,7 +2669,7 @@ describe('$mdPanel', function() {
       return;
     }
 
-    var container = panelRef._panelContainer;
+    var container = panelRef.panelContainer;
 
     container.triggerHandler({
       type: 'mousedown',
@@ -2167,7 +2689,7 @@ describe('$mdPanel', function() {
       return;
     }
 
-    var container = panelRef._panelContainer;
+    var container = panelRef.panelContainer;
 
     container.triggerHandler({
       type: 'keydown',
@@ -2222,5 +2744,32 @@ describe('$mdPanel', function() {
   function flushPanel() {
     $rootScope.$apply();
     $material.flushOutstandingAnimations();
+  }
+
+  function callInterceptors(type) {
+    if (panelRef) {
+      var promise = panelRef._callInterceptors(
+        $mdPanel.interceptorTypes[type] || type
+      );
+
+      flushPanel();
+      return promise;
+    }
+  }
+
+  function getNumberOfGroups() {
+    return Object.keys($mdPanel._groups).length;
+  }
+
+  function getGroupPanels(groupName) {
+    return $mdPanel._groups[groupName].panels;
+  }
+
+  function getGroupOpenPanels(groupName) {
+    return $mdPanel._groups[groupName].openPanels;
+  }
+
+  function getGroupMaxOpen(groupName) {
+    return $mdPanel._groups[groupName].maxOpen;
   }
 });

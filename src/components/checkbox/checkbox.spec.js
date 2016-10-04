@@ -248,6 +248,20 @@ describe('mdCheckbox', function() {
       expect(checkbox.hasClass('ng-invalid')).toBe(true);
     });
 
+    it('properly unsets the md-checked CSS if ng-checked is undefined', function() {
+      var checkbox = compileAndLink('<md-checkbox ng-checked="value"></md-checkbox>');
+
+      expect(checkbox.hasClass(CHECKED_CSS)).toBe(false);
+    });
+
+    it('should mark the checkbox as selected on load with ng-checked', function() {
+      pageScope.isChecked = function() { return true; };
+
+      var checkbox = compileAndLink('<md-checkbox ng-model="checked" ng-checked="isChecked()"></md-checkbox>');
+
+      expect(checkbox).toHaveClass(CHECKED_CSS);
+    });
+
     describe('with the md-indeterminate attribute', function() {
 
       it('should set md-indeterminate attr to true by default', function() {

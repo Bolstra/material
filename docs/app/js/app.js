@@ -1,6 +1,4 @@
-var DocsApp = angular.module('docsApp', [ 'angularytics', 'ngRoute', 'ngMessages', 'ngMaterial' ])
-
-.config([
+angular.module('docsApp', [ 'angularytics', 'ngRoute', 'ngMessages', 'ngMaterial' ], [
   'SERVICES',
   'COMPONENTS',
   'DEMOS',
@@ -11,6 +9,7 @@ var DocsApp = angular.module('docsApp', [ 'angularytics', 'ngRoute', 'ngMessages
   '$mdIconProvider',
 function(SERVICES, COMPONENTS, DEMOS, PAGES,
     $routeProvider, $locationProvider, $mdThemingProvider, $mdIconProvider) {
+
   $locationProvider.html5Mode(true);
 
   $routeProvider
@@ -69,6 +68,9 @@ function(SERVICES, COMPONENTS, DEMOS, PAGES,
       .primaryPalette('docs-blue')
       .accentPalette('docs-red');
 
+  $mdThemingProvider
+      .enableBrowserColor();
+
   angular.forEach(PAGES, function(pages, area) {
     angular.forEach(pages, function(page) {
       $routeProvider
@@ -125,6 +127,11 @@ function(SERVICES, COMPONENTS, DEMOS, PAGES,
   });
 
   $routeProvider.otherwise('/');
+
+  // Change hash prefix of the Angular router, because we use the hash symbol for anchor links.
+  // The hash will be not used by the docs, because we use the HTML5 mode for our links.
+  $locationProvider.hashPrefix('!');
+
 }])
 
 .config(['AngularyticsProvider', function(AngularyticsProvider) {
@@ -221,6 +228,11 @@ function(SERVICES, COMPONENTS, DEMOS, PAGES, $location, $rootScope, $http, $wind
             name: 'Under the Hood',
             url: 'Theming/05_under_the_hood',
             type: 'link'
+          },
+          {
+            name: 'Browser Color',
+            url: 'Theming/06_browser_color',
+            type: 'link'
           }
         ]
       }
@@ -307,7 +319,7 @@ function(SERVICES, COMPONENTS, DEMOS, PAGES, $location, $rootScope, $http, $wind
         url: 'contributors',
         type: 'link'
       } );
-      
+
   sections.push({
     name: 'License',
     url:  'license',
@@ -515,7 +527,7 @@ function(SERVICES, COMPONENTS, DEMOS, PAGES, $location, $rootScope, $http, $wind
 
                 // If we are open and the user has not scrolled the content div; scroll the active
                 // list item into view.
-                if (open && $li && $ul[0].scrollTop === 0) {
+                if (open && $li && $li.offsetParent && $ul[0].scrollTop === 0) {
                   $timeout(function() {
                     var activeHeight = $li.scrollHeight;
                     var activeOffset = $li.offsetTop;
@@ -802,15 +814,15 @@ function($rootScope, $scope, component, demos, $templateRequest) {
       if (!restrict.element && restrict.attribute) {
         return '[' + str + ']';
       }
-      
+
       // If it is restricted to elements and isn't a service
       if (restrict.element && str.indexOf('-') > -1) {
         return '<' + str + '>';
       }
-      
+
       // TODO: Handle class/comment restrictions if we ever have any to document
     }
-    
+
     // Just return the original string if we don't know what to do with it
     return str;
   };

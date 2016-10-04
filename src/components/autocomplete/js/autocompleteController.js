@@ -2,14 +2,15 @@ angular
     .module('material.components.autocomplete')
     .controller('MdAutocompleteCtrl', MdAutocompleteCtrl);
 
-var ITEM_HEIGHT   = 41,
-    MAX_HEIGHT    = 5.5 * ITEM_HEIGHT,
+var ITEM_HEIGHT   = 48,
+    MAX_ITEMS     = 5,
     MENU_PADDING  = 8,
     INPUT_PADDING = 2; // Padding provided by `md-input-container`
 
 function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming, $window,
-                             $animate, $rootElement, $attrs, $q) {
-  //-- private variables
+                             $animate, $rootElement, $attrs, $q, $log) {
+
+  // Internal Variables.
   var ctrl                 = this,
       itemParts            = $scope.itemsExpr.split(/ in /i),
       itemExpr             = itemParts[ 1 ],
@@ -23,10 +24,10 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
       enableWrapScroll     = null,
       inputModelCtrl       = null;
 
-  //-- public variables with handlers
+  // Public Exported Variables with handlers
   defineProperty('hidden', handleHiddenChange, true);
 
-  //-- public variables
+  // Public Exported Variables
   ctrl.scope      = $scope;
   ctrl.parent     = $scope.$parent;
   ctrl.itemName   = itemParts[ 0 ];
@@ -41,7 +42,7 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
   ctrl.isReadonly = null;
   ctrl.hasNotFound = false;
 
-  //-- public methods
+  // Public Exported Methods
   ctrl.keydown                       = keydown;
   ctrl.blur                          = blur;
   ctrl.focus                         = focus;
@@ -55,6 +56,7 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
   ctrl.unregisterSelectedItemWatcher = unregisterSelectedItemWatcher;
   ctrl.notFoundVisible               = notFoundVisible;
   ctrl.loadingIsVisible              = loadingIsVisible;
+  ctrl.positionDropdown              = positionDropdown;
 
   return init();
 
@@ -68,17 +70,21 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
     $mdTheming($element);
     configureWatchers();
     $mdUtil.nextTick(function () {
+
       gatherElements();
       moveDropdown();
-      focusElement();
-      $element.on('focus', focusElement);
+
+      // Forward all focus events to the input element when autofocus is enabled
+      if ($scope.autofocus) {
+        $element.on('focus', focusInputElement);
+      }
     });
   }
 
   function updateModelValidators() {
     if (!$scope.requireMatch || !inputModelCtrl) return;
 
-    inputModelCtrl.$setValidity('md-require-match', !!$scope.selectedItem);
+    inputModelCtrl.$setValidity('md-require-match', !!$scope.selectedItem || !$scope.searchText);
   }
 
   /**
@@ -86,7 +92,12 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
    * @returns {*}
    */
   function positionDropdown () {
-    if (!elements) return $mdUtil.nextTick(positionDropdown, false, $scope);
+    if (!elements) {
+      return $mdUtil.nextTick(positionDropdown, false, $scope);
+    }
+
+    var dropdownHeight = ($scope.dropdownItems || MAX_ITEMS) * ITEM_HEIGHT;
+
     var hrect  = elements.wrap.getBoundingClientRect(),
         vrect  = elements.snap.getBoundingClientRect(),
         root   = elements.root.getBoundingClientRect(),
@@ -106,14 +117,16 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
       minWidth: width + 'px',
       maxWidth: Math.max(hrect.right - root.left, root.right - hrect.left) - MENU_PADDING + 'px'
     };
-    if (top > bot && root.height - hrect.bottom - MENU_PADDING < MAX_HEIGHT) {
+    if (top > bot && root.height - hrect.bottom - MENU_PADDING < dropdownHeight) {
       styles.top       = 'auto';
       styles.bottom    = bot + 'px';
-      styles.maxHeight = Math.min(MAX_HEIGHT, hrect.top - root.top - MENU_PADDING) + 'px';
+      styles.maxHeight = Math.min(dropdownHeight, hrect.top - root.top - MENU_PADDING) + 'px';
     } else {
+      var bottomSpace = root.bottom - hrect.bottom - MENU_PADDING + $mdUtil.getViewportTop();
+
       styles.top       = (top - offset) + 'px';
       styles.bottom    = 'auto';
-      styles.maxHeight = Math.min(MAX_HEIGHT, root.bottom + $mdUtil.scrollTop() - hrect.bottom - MENU_PADDING) + 'px';
+      styles.maxHeight = Math.min(dropdownHeight, bottomSpace) + 'px';
     }
 
     elements.$.scrollContainer.css(styles);
@@ -164,8 +177,8 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
   /**
    * Sends focus to the input element.
    */
-  function focusElement () {
-    if ($scope.autofocus) elements.input.focus();
+  function focusInputElement () {
+    elements.input.focus();
   }
 
   /**
@@ -192,7 +205,7 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
 
     angular.element($window).off('resize', positionDropdown);
     if ( elements ){
-      var items = 'ul scroller scrollContainer input'.split(' ');
+      var items = ['ul', 'scroller', 'scrollContainer', 'input'];
       angular.forEach(items, function(key){
         elements.$[key].remove();
       });
@@ -205,8 +218,8 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
   function gatherElements () {
     elements = {
       main:  $element[0],
-      scrollContainer: $element[0].getElementsByClassName('md-virtual-repeat-container')[0],
-      scroller: $element[0].getElementsByClassName('md-virtual-repeat-scroller')[0],
+      scrollContainer: $element[0].querySelector('.md-virtual-repeat-container'),
+      scroller: $element[0].querySelector('.md-virtual-repeat-scroller'),
       ul:    $element.find('ul')[0],
       input: $element.find('input')[0],
       wrap:  $element.find('md-autocomplete-wrap')[0],
@@ -256,20 +269,16 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
       positionDropdown();
 
       if (elements) {
-        $mdUtil.nextTick(function () {
-          $mdUtil.disableScrollAround(elements.ul);
-          enableWrapScroll = disableElementScrollEvents(angular.element(elements.wrap));
-        }, false, $scope);
+        $mdUtil.disableScrollAround(elements.ul);
+        enableWrapScroll = disableElementScrollEvents(angular.element(elements.wrap));
       }
     } else if (hidden && !oldHidden) {
-      $mdUtil.nextTick(function () {
-        $mdUtil.enableScrolling();
+      $mdUtil.enableScrolling();
 
-        if (enableWrapScroll) {
-          enableWrapScroll();
-          enableWrapScroll = null;
-        }
-      }, false, $scope);
+      if (enableWrapScroll) {
+        enableWrapScroll();
+        enableWrapScroll = null;
+      }
     }
   }
 
@@ -288,7 +297,7 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
     return function() {
       element.off('wheel', preventDefault);
       element.off('touchmove', preventDefault);
-    }
+    };
   }
 
   /**
@@ -328,12 +337,12 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
         $scope.searchText = val;
         handleSelectedItemChange(selectedItem, previousSelectedItem);
       });
-    } else if (previousSelectedItem) {
+    } else if (previousSelectedItem && $scope.searchText) {
       getDisplayValue(previousSelectedItem).then(function(displayValue) {
         // Clear the searchText, when the selectedItem is set to null.
         // Do not clear the searchText, when the searchText isn't matching with the previous
         // selected item.
-        if (displayValue.toLowerCase() === $scope.searchText.toLowerCase()) {
+        if (displayValue.toString().toLowerCase() === $scope.searchText.toLowerCase()) {
           $scope.searchText = '';
         }
       });
@@ -424,10 +433,12 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
   /**
    * Handles input blur event, determines if the dropdown should hide.
    */
-  function blur () {
+  function blur($event) {
     hasFocus = false;
+
     if (!noBlur) {
       ctrl.hidden = shouldHide();
+      evalAttr('ngBlur', { $event: $event });
     }
   }
 
@@ -448,10 +459,14 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
    */
   function focus($event) {
     hasFocus = true;
-    //-- if searchText is null, let's force it to be a string
-    if (!angular.isString($scope.searchText)) $scope.searchText = '';
+
+    if (isSearchable() && isMinLengthMet()) {
+      handleQuery();
+    }
+
     ctrl.hidden = shouldHide();
-    if (!ctrl.hidden) handleQuery();
+
+    evalAttr('ngFocus', { $event: $event });
   }
 
   /**
@@ -529,7 +544,14 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
    * @returns {*}
    */
   function getDisplayValue (item) {
-    return $q.when(getItemText(item) || item);
+    return $q.when(getItemText(item) || item).then(function(itemText) {
+      if (itemText && !angular.isString(itemText)) {
+        $log.warn('md-autocomplete: Could not resolve display value to a string. ' +
+          'Please check the `md-item-text` attribute.');
+      }
+
+      return itemText;
+    });
 
     /**
      * Getter function to invoke user-defined expression (in the directive)
@@ -580,10 +602,19 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
    * @returns {boolean}
    */
   function shouldHide () {
-    if (ctrl.loading && !hasMatches()) return true; // Hide while loading initial matches
-    else if (hasSelection()) return true;           // Hide if there is already a selection
-    else if (!hasFocus) return true;                // Hide if the input does not have focus
-    else return !shouldShow();                      // Defer to standard show logic
+    if (!isSearchable()) return true;    // Hide when not able to query
+    else return !shouldShow();            // Hide when the dropdown is not able to show.
+  }
+
+  /**
+   * Determines whether the autocomplete is able to query within the current state.
+   * @returns {boolean}
+   */
+  function isSearchable() {
+    if (ctrl.loading && !hasMatches()) return false; // No query when query is in progress.
+    else if (hasSelection()) return false;           // No query if there is already a selection
+    else if (!hasFocus) return false;                // No query if the input does not have focus
+    return true;
   }
 
   /**
@@ -886,6 +917,17 @@ function MdAutocompleteCtrl ($scope, $element, $mdUtil, $mdConstant, $mdTheming,
 
       if (isMatching) select(0);
     });
+  }
+
+  /**
+   * Evaluates an attribute expression against the parent scope.
+   * @param {String} attr Name of the attribute to be evaluated.
+   * @param {Object?} locals Properties to be injected into the evaluation context.
+   */
+ function evalAttr(attr, locals) {
+    if ($attrs[attr]) {
+      $scope.$parent.$eval($attrs[attr], locals || {});
+    }
   }
 
 }
