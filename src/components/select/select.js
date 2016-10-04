@@ -273,6 +273,10 @@ function SelectDirective($mdSelect, $mdUtil, $mdConstant, $mdTheming, $mdAria, $
       var isReadonly = angular.isDefined(attr.readonly);
       var disableAsterisk = $mdUtil.parseAttributeBoolean(attr.mdNoAsterisk);
 
+			if (disableAsterisk) {
+				element.addClass('md-no-asterisk');
+			}
+
       if (containerCtrl) {
         var isErrorGetter = containerCtrl.isErrorGetter || function() {
           return ngModelCtrl.$invalid && (ngModelCtrl.$touched || (formCtrl && formCtrl.$submitted));
